@@ -7,7 +7,15 @@
 ** Location:    main.cpp
 ** Description: initial setup for the device
 ***************************************************************************************/
-void _setup_gpio() {}
+void _setup_gpio() {
+    // Configura os pinos do joystick e botões com pull-up interno
+    pinMode(14, INPUT_PULLUP); // Botão Select / Clique
+    pinMode(0, INPUT_PULLUP);  // Botão Boot (Esc)
+    
+    // Configura os pinos analógicos/digitais do Joystick
+    pinMode(12, INPUT);
+    pinMode(13, INPUT);
+}
 
 /***************************************************************************************
 ** Function:    _post_setup_gpio()
@@ -28,7 +36,7 @@ void _late_setup_gpio() {}
 ** location: display.cpp
 ** Description:   Delivers the battery value from 1-100
 ***************************************************************************************/
-int getBattery() { return 0; }
+int getBattery() { return 100; }
 
 /*********************************************************************
 ** Function: setBrightness
@@ -49,18 +57,39 @@ void InputHandler(void) {
     AnyKeyPress = false;
     EscPress = false;
 
-    if (false /*Conditions fot all inputs*/) {
-        if (!wakeUpScreen()) AnyKeyPress = true;
-        else goto END;
+    // Leitura dos botões físicos (Ativo em LOW por causa do PULLUP)
+    bool selectPressed = (digitalRead(14) == LOW);
+    bool escPressed = (digitalRead(0) == LOW);
+
+    // Leitura dos eixos do Joystick (Conversão ADC do ESP32-S3: 0 a 4095)
+    int joyX = analogRead(12);
+    int joyY = analogRead(13);
+
+    // Limites de limiar (Threshold) para detectar o movimento do joystick
+    bool joyUp    = (joyY < 1000);
+    bool joyDown  = (joyY > 3000);
+    bool joyLeft  = (joyX < 1000);
+    bool joyRight = (joyX > 3000);
+
+    // Condição geral se qualquer input for acionado
+    if (selectPressed || escPressed || joyUp || joyDown || joyLeft || joyRight) {
+        if (!wakeUpScreen()) {
+            AnyKeyPress = true;
+        } else {
+            goto END;
+        }
     }
-    if (false /*Conditions for previous btn*/) { PrevPress = true; }
-    if (false /*Conditions for Next btn*/) { NextPress = true; }
-    if (false /*Conditions for Esc btn*/) { EscPress = true; }
-    if (false /*Conditions for Select btn*/) { SelPress = true; }
+
+    // Mapeamento dos comandos do Launcher
+    if (joyUp || joyLeft)     { PrevPress = true; }
+    if (joyDown || joyRight)  { NextPress = true; }
+    if (selectPressed)        { SelPress = true; }
+    if (escPressed)           { EscPress = true; }
+
 END:
     if (AnyKeyPress) {
         long tmp = launcherMillis();
-        while ((launcherMillis() - tmp) < 200 && false /*Conditions fot all inputs*/);
+        while ((launcherMillis() - tmp) < 200 && (digitalRead(14) == LOW || digitalRead(0) == LOW));
     }
 }
 
@@ -70,12 +99,9 @@ END:
 ** Turns off the device (or try to)
 **********************************************************************/
 void powerOff() {
-    // put into deepsleep mode, or shutdown if PMIC is available
     esp_sleep_enable_ext0_wakeup(GPIO_NUM_0, LOW);
     vTaskDelay(pdMS_TO_TICKS(200));
     esp_deep_sleep_start();
-    // or PMIC shutdown if available
-    // PPM.shutdown();
 }
 
 /*********************************************************************
@@ -83,7 +109,5 @@ void powerOff() {
 ** Handles reboot process for devices
 **********************************************************************/
 void reboot() {
-    // function to replace the ESP.restart() function, which is not working on some devices
-    // some devices need specific process before ESP.restart() to enable SD mounting and other processes
     ESP.restart();
 }
