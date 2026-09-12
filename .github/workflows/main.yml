@@ -8,7 +8,7 @@
   on:
     pull_request:
       branches:
-        - main
+        - feature/esp32-st7735-st7789-setups
       paths:
         - "**.h"
         - "**.cpp"
@@ -126,6 +126,7 @@
             - { env: "xteink-x3-x4"               }
             - { env: "xteink-x4pro"               }
             - { env: "xueersi-xiaomiao"           }
+            - { env: "Launcher-ST7789-Encoder     }
 
       steps:
           - uses: actions/checkout@v5
